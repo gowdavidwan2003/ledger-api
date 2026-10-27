@@ -20,6 +20,7 @@ st.set_page_config(page_title="Transaction Ledger", page_icon="📒", layout="wi
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 DEMO_PHONE = "9000000001"
+REPO_URL = "https://github.com/gowdavidwan2003/ledger-api"
 
 
 def _secrets_to_env() -> None:
@@ -148,7 +149,11 @@ with st.sidebar:
         st.session_state.receipt = None
         st.rerun()
     st.divider()
-    st.caption(f"[API docs]({API_URL}/docs)")
+    if os.getenv("EMBED_API") == "1":
+        # Hosted: the API only listens on the container's loopback, so link the repo docs.
+        st.caption(f"[API reference]({REPO_URL}#api) · [Error codes]({REPO_URL}/blob/main/docs/ERRORS.md)")
+    else:
+        st.caption(f"[API docs]({API_URL}/docs)")
 
 top = st.columns([5, 3, 3])
 top[0].subheader(escape(account["name"]))
