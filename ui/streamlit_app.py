@@ -109,6 +109,7 @@ st.session_state.setdefault("account_id", None)
 # timed-out attempts, so a resubmit can't double-post, and rotates after success.
 st.session_state.setdefault("pending_ref", new_reference())
 st.session_state.setdefault("receipt", None)
+st.session_state.setdefault("form_generation", 0)
 
 st.title("📒 Transaction Ledger")
 
@@ -179,10 +180,14 @@ with left:
     if receipt := st.session_state.receipt:
         st.success(receipt)
 
-    with st.form("txn", clear_on_submit=False):
-        txn_type = st.segmented_control("Type", ["credit", "debit"], default="credit")
-        amount = st.number_input("Amount (₹)", min_value=0.01, step=100.0, format="%.2f")
-        description = st.text_input("Description", placeholder="e.g. Salary, Rent, Coffee")
+    # A new form identity after every success resets its fields, so clicking Submit
+    # again can't silently post the same transaction a second time under a fresh
+    # reference. After a failure the fields (and the reference) are kept for retry.
+    n = st.session_state.form_generation
+    with st.form(f"txn-{n}"):
+        txn_type = st.segmented_control("Type", ["credit", "debit"], default="credit", key=f"type-{n}")
+        amount = st.number_input("Amount (₹)", min_value=0.01, step=100.0, format="%.2f", key=f"amount-{n}")
+        description = st.text_input("Description", placeholder="e.g. Salary, Rent, Coffee", key=f"desc-{n}")
         if st.form_submit_button("Submit", type="primary", use_container_width=True):
             st.session_state.receipt = None
             code, body = api(
@@ -203,6 +208,7 @@ with left:
                     f"Reference: `{body['reference_id']}` · Balance: {rupees(body['balance_after'])}"
                 )
                 st.session_state.pending_ref = new_reference()
+                st.session_state.form_generation += 1
                 st.rerun()
             if code == 409:
                 st.session_state.pending_ref = new_reference()
