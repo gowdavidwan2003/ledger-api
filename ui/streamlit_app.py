@@ -27,10 +27,20 @@ def _secrets_to_env() -> None:
     """On Streamlit Cloud, configuration arrives as st.secrets, not a .env file."""
     try:
         for key, value in st.secrets.items():
-            if isinstance(value, str):
-                os.environ.setdefault(key, value)
+            # TOML allows EMBED_API = 1 or = true as well as "1"; accept them all.
+            if isinstance(value, str | int | float | bool):
+                os.environ.setdefault(key, str(value))
     except Exception:  # no secrets file locally: .env is used instead
         pass
+
+
+def _embed_api() -> bool:
+    """Run the API in-process when asked to, or when the app has database
+    credentials but no external API to talk to (the hosted setup)."""
+    flag = os.getenv("EMBED_API", "").strip().lower()
+    if flag in {"1", "true", "yes"}:
+        return True
+    return flag == "" and bool(os.getenv("DATABASE_URL")) and not os.getenv("API_URL")
 
 
 @st.cache_resource(show_spinner="Starting the ledger API…")
@@ -41,7 +51,8 @@ def _embedded_api_url() -> str:
 
 
 _secrets_to_env()
-if os.getenv("EMBED_API") == "1":
+EMBEDDED = _embed_api()
+if EMBEDDED:
     API_URL = _embedded_api_url()
 else:
     API_URL = os.getenv("API_URL", "http://localhost:8000").rstrip("/")
@@ -149,7 +160,7 @@ with st.sidebar:
         st.session_state.receipt = None
         st.rerun()
     st.divider()
-    if os.getenv("EMBED_API") == "1":
+    if EMBEDDED:
         # Hosted: the API only listens on the container's loopback, so link the repo docs.
         st.caption(f"[API reference]({REPO_URL}#api) · [Error codes]({REPO_URL}/blob/main/docs/ERRORS.md)")
     else:
