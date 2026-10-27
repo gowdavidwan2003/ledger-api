@@ -52,10 +52,7 @@ def _embedded_api_url() -> str:
 
 _secrets_to_env()
 EMBEDDED = _embed_api()
-if EMBEDDED:
-    API_URL = _embedded_api_url()
-else:
-    API_URL = os.getenv("API_URL", "http://localhost:8000").rstrip("/")
+API_URL = _embedded_api_url() if EMBEDDED else os.getenv("API_URL", "http://localhost:8000").rstrip("/")
 
 FRIENDLY = {
     "PHONE_NOT_REGISTERED": "No account found for this number. Create one in the **Create account** tab.",
